@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/app/lib/supabase-server';
 import { getTeacherCourses } from '@/app/lib/db/courses';
 import { getCourseLessons } from '@/app/lib/db/lessons';
+import { getTeacherQuizzes } from '@/app/lib/db/quizzes';
 
 export async function GET(request: Request) {
   try {
@@ -16,62 +17,27 @@ export async function GET(request: Request) {
     const teacherCourses = await getTeacherCourses(user.id);
     const totalCourses = teacherCourses.length;
 
-    // Calculate total students across all courses
+    // Calculate total students across all courses (real-time count)
     let totalStudents = 0;
     for (const course of teacherCourses) {
       totalStudents += course.student_count || 0;
     }
 
-    // Calculate total lessons across all courses
+    // Calculate total lessons across all courses (real-time count)
     let totalLessons = 0;
-    let totalSubtopics = 0;
-    let totalVideos = 0;
-    let totalPDFs = 0;
-    let totalQuizzes = 0;
-
     for (const course of teacherCourses) {
       try {
         const lessons = await getCourseLessons(course.id);
         totalLessons += lessons.length;
-
-        // Count subtopics, videos, PDFs, and quizzes for each lesson
-        for (const lesson of lessons) {
-          const { data: subtopics } = await supabase
-            .from('subtopics')
-            .select('id')
-            .eq('lesson_id', lesson.id);
-
-          if (subtopics) {
-            totalSubtopics += subtopics.length;
-
-            // Count videos and PDFs for each subtopic
-            for (const subtopic of subtopics) {
-              const [videosResult, pdfsResult, questionsResult] = await Promise.all([
-                supabase.from('videos').select('id').eq('subtopic_id', subtopic.id),
-                supabase.from('pdfs').select('id').eq('subtopic_id', subtopic.id),
-                supabase.from('subtopic_questions').select('id').eq('subtopic_id', subtopic.id),
-              ]);
-
-              if (videosResult.data) totalVideos += videosResult.data.length;
-              if (pdfsResult.data) totalPDFs += pdfsResult.data.length;
-              if (questionsResult.data) totalQuizzes += questionsResult.data.length;
-            }
-          }
-
-          // Also count videos and PDFs directly linked to course (legacy)
-          const [courseVideos, coursePDFs] = await Promise.all([
-            supabase.from('videos').select('id').eq('course_id', course.id).is('subtopic_id', null),
-            supabase.from('pdfs').select('id').eq('course_id', course.id).is('subtopic_id', null),
-          ]);
-
-          if (courseVideos.data) totalVideos += courseVideos.data.length;
-          if (coursePDFs.data) totalPDFs += coursePDFs.data.length;
-        }
       } catch (error) {
         console.error(`Error fetching lessons for course ${course.id}:`, error);
         // Continue with other courses
       }
     }
+
+    // Get total quizzes from standalone quizzes table (real-time count)
+    const teacherQuizzes = await getTeacherQuizzes(user.id);
+    const totalQuizzes = teacherQuizzes.length;
 
     // Get recent courses (last 5)
     const recentCourses = teacherCourses.slice(0, 5).map(course => ({
@@ -86,9 +52,6 @@ export async function GET(request: Request) {
       totalCourses,
       totalStudents,
       totalLessons,
-      totalSubtopics,
-      totalVideos,
-      totalPDFs,
       totalQuizzes,
       recentCourses,
     });

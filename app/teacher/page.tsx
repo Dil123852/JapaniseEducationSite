@@ -3,6 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import TeacherMobileMenu from '@/app/components/TeacherMobileMenu';
+import { getCurrentUser } from '@/app/lib/auth-server';
+import { getTeacherCourses } from '@/app/lib/db/courses';
+import { getCourseLessons } from '@/app/lib/db/lessons';
+import { getTeacherQuizzes } from '@/app/lib/db/quizzes';
+import { redirect } from 'next/navigation';
 import {
   BookOpen,
   Video,
@@ -17,41 +22,59 @@ import {
 } from 'lucide-react';
 
 export default async function TeacherDashboard() {
-  // Fetch dashboard data from API
+  // Get authenticated user
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect('/auth/login');
+  }
+
+  // Fetch real-time data directly from database
   let stats = {
     totalLessons: 0,
-    totalSubtopics: 0,
     totalStudents: 0,
-    totalVideos: 0,
-    totalPDFs: 0,
     totalQuizzes: 0,
   };
 
   let recentActivity: any[] = [];
 
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/teacher/dashboard`, {
-      cache: 'no-store',
-    });
-    
-    if (response.ok) {
-      const data = await response.json();
-      stats = {
-        totalLessons: data.totalLessons || 0,
-        totalSubtopics: data.totalSubtopics || 0,
-        totalStudents: data.totalStudents || 0,
-        totalVideos: data.totalVideos || 0,
-        totalPDFs: data.totalPDFs || 0,
-        totalQuizzes: data.totalQuizzes || 0,
-      };
+    // Fetch all courses created by the teacher
+    const teacherCourses = await getTeacherCourses(user.id);
+
+    // Calculate total students across all courses (real-time count)
+    let totalStudents = 0;
+    for (const course of teacherCourses) {
+      totalStudents += course.student_count || 0;
     }
+
+    // Calculate total lessons across all courses (real-time count)
+    let totalLessons = 0;
+    for (const course of teacherCourses) {
+      try {
+        const lessons = await getCourseLessons(course.id);
+        totalLessons += lessons.length;
+      } catch (error) {
+        console.error(`Error fetching lessons for course ${course.id}:`, error);
+        // Continue with other courses
+      }
+    }
+
+    // Get total quizzes from standalone quizzes table (real-time count)
+    const teacherQuizzes = await getTeacherQuizzes(user.id);
+    const totalQuizzes = teacherQuizzes.length;
+
+    stats = {
+      totalLessons,
+      totalStudents,
+      totalQuizzes,
+    };
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
     // Use default values if fetch fails
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 pb-20 md:pb-8">
+    <div className="min-h-screen bg-white p-4 md:p-8 space-y-6 md:space-y-8 pb-20 md:pb-8">
       {/* Mobile Header with Hamburger */}
       <div className="flex items-center justify-between md:hidden mb-4">
         <TeacherMobileMenu />
@@ -66,76 +89,43 @@ export default async function TeacherDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">Total Lessons</CardTitle>
-            <BookOpen className="w-5 h-5 md:w-4 md:h-4 text-[#4c8bf5]" />
+      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-2.5 md:px-6 pt-1.5 md:pt-3">
+            <CardTitle className="text-xs md:text-sm font-medium text-[#9CA3AF]">Total Lessons</CardTitle>
+            <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalLessons}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Active lessons</p>
+          <CardContent className="px-2.5 md:px-6 pb-1.5 md:pb-3 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-[#2B2B2B]">{stats.totalLessons}</div>
+            <p className="text-[10px] md:text-xs text-[#9CA3AF] mt-0">Active lessons</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">Subtopics</CardTitle>
-            <FileText className="w-5 h-5 md:w-4 md:h-4 text-[#6d5dfc]" />
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-2.5 md:px-6 pt-1.5 md:pt-3">
+            <CardTitle className="text-xs md:text-sm font-medium text-[#9CA3AF]">Quizzes</CardTitle>
+            <FileQuestion className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalSubtopics}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Learning modules</p>
+          <CardContent className="px-2.5 md:px-6 pb-1.5 md:pb-3 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-[#2B2B2B]">{stats.totalQuizzes}</div>
+            <p className="text-[10px] md:text-xs text-[#9CA3AF] mt-0">Created quizzes</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">Total Students</CardTitle>
-            <Users className="w-5 h-5 md:w-4 md:h-4 text-[#7fd1a1]" />
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-2.5 md:px-6 pt-1.5 md:pt-3">
+            <CardTitle className="text-xs md:text-sm font-medium text-[#9CA3AF]">Total Students</CardTitle>
+            <Users className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalStudents}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Enrolled students</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">Videos</CardTitle>
-            <Video className="w-5 h-5 md:w-4 md:h-4 text-[#EF6161]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalVideos}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Uploaded videos</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">PDFs</CardTitle>
-            <FileText className="w-5 h-5 md:w-4 md:h-4 text-[#4c8bf5]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalPDFs}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Document files</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 md:pb-2">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">Quizzes</CardTitle>
-            <FileQuestion className="w-5 h-5 md:w-4 md:h-4 text-[#6d5dfc]" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{stats.totalQuizzes}</div>
-            <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">Created quizzes</p>
+          <CardContent className="px-2.5 md:px-6 pb-1.5 md:pb-3 pt-0">
+            <div className="text-lg md:text-3xl font-bold text-[#2B2B2B]">{stats.totalStudents}</div>
+            <p className="text-[10px] md:text-xs text-[#9CA3AF] mt-0">Enrolled students</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Actions */}
-      <Card className="bg-white border-[#E5E7EB]">
+      <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
         <CardHeader className="pb-3 md:pb-6">
           <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Quick Actions</CardTitle>
           <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Common tasks to get you started</CardDescription>
@@ -144,66 +134,64 @@ export default async function TeacherDashboard() {
           {/* Desktop Grid */}
           <div className="hidden md:grid grid-cols-4 gap-4">
             <Link href="/teacher/lessons/create">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white">
+              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] rounded-[24px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
                 <Plus className="w-6 h-6" />
                 <span className="font-medium">Create Lesson</span>
               </Button>
             </Link>
             <Link href="/teacher/resources/videos">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B]">
+              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
                 <Video className="w-6 h-6" />
                 <span className="font-medium">Upload Video</span>
               </Button>
             </Link>
             <Link href="/teacher/resources/pdfs">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B]">
+              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
                 <FileText className="w-6 h-6" />
                 <span className="font-medium">Upload PDF</span>
               </Button>
             </Link>
             <Link href="/teacher/quizzes/create">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B]">
+              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
                 <FileQuestion className="w-6 h-6" />
                 <span className="font-medium">Create Quiz</span>
               </Button>
             </Link>
           </div>
           
-          {/* Mobile Horizontal Scroll */}
-          <div className="md:hidden overflow-x-auto pb-2 -mx-4 px-4">
-            <div className="flex gap-3 min-w-max">
-              <Link href="/teacher/lessons/create" className="flex-shrink-0">
-                <Button className="h-auto min-h-[120px] w-[140px] flex flex-col gap-2 bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white px-4 py-4 rounded-xl">
-                  <Plus className="w-7 h-7" />
-                  <span className="font-medium text-base">Create Lesson</span>
-                </Button>
-              </Link>
-              <Link href="/teacher/resources/videos" className="flex-shrink-0">
-                <Button className="h-auto min-h-[120px] w-[140px] flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-4 py-4 rounded-xl">
-                  <Video className="w-7 h-7" />
-                  <span className="font-medium text-base">Upload Video</span>
-                </Button>
-              </Link>
-              <Link href="/teacher/resources/pdfs" className="flex-shrink-0">
-                <Button className="h-auto min-h-[120px] w-[140px] flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-4 py-4 rounded-xl">
-                  <FileText className="w-7 h-7" />
-                  <span className="font-medium text-base">Upload PDF</span>
-                </Button>
-              </Link>
-              <Link href="/teacher/quizzes/create" className="flex-shrink-0">
-                <Button className="h-auto min-h-[120px] w-[140px] flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-4 py-4 rounded-xl">
-                  <FileQuestion className="w-7 h-7" />
-                  <span className="font-medium text-base">Create Quiz</span>
-                </Button>
-              </Link>
-            </div>
+          {/* Mobile 2-Row Grid */}
+          <div className="md:hidden grid grid-cols-2 gap-2">
+            <Link href="/teacher/lessons/create">
+              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-3 rounded-[10px] border border-[#E5E7EB] soft-shadow">
+                <Plus className="w-5 h-5" />
+                <span className="font-medium text-xs">Create Lesson</span>
+              </Button>
+            </Link>
+            <Link href="/teacher/resources/videos">
+              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
+                <Video className="w-5 h-5" />
+                <span className="font-medium text-xs">Upload Video</span>
+              </Button>
+            </Link>
+            <Link href="/teacher/resources/pdfs">
+              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
+                <FileText className="w-5 h-5" />
+                <span className="font-medium text-xs">Upload PDF</span>
+              </Button>
+            </Link>
+            <Link href="/teacher/quizzes/create">
+              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
+                <FileQuestion className="w-5 h-5" />
+                <span className="font-medium text-xs">Create Quiz</span>
+              </Button>
+            </Link>
           </div>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         {/* Recent Activity */}
-        <Card className="bg-white border-[#E5E7EB]">
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
           <CardHeader>
             <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Recent Activity</CardTitle>
             <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Latest updates from your classes</CardDescription>
@@ -218,8 +206,8 @@ export default async function TeacherDashboard() {
             ) : (
               <div className="space-y-3 md:space-y-4">
                 {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 md:p-3 rounded-lg hover:bg-[#FAFAFA] transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-[#4c8bf5] mt-2"></div>
+                  <div key={index} className="flex items-start gap-3 p-3 md:p-3 rounded-[10px] hover:bg-[#FAFAFA] transition-colors">
+                    <div className="w-2 h-2 rounded-full bg-[#C2E2F5] mt-2"></div>
                     <div className="flex-1">
                       <p className="text-base md:text-sm text-[#2B2B2B]">{activity.message}</p>
                       <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">{activity.time}</p>
@@ -232,25 +220,25 @@ export default async function TeacherDashboard() {
         </Card>
 
         {/* Student Progress Snapshot */}
-        <Card className="bg-white border-[#E5E7EB]">
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
           <CardHeader>
             <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Student Progress</CardTitle>
             <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Quick overview of student performance</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3 md:space-y-4">
-              <div className="flex items-center justify-between p-4 md:p-4 rounded-lg bg-[#F0F9FF] border border-[#C2E2F5]">
+              <div className="flex items-center justify-between p-4 md:p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
                 <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-6 h-6 md:w-5 md:h-5 text-[#7fd1a1]" />
+                  <CheckCircle2 className="w-6 h-6 md:w-5 md:h-5 text-[#C2E2F5]" />
                   <div>
                     <p className="text-base md:text-sm font-medium text-[#2B2B2B]">Completed Quizzes</p>
                     <p className="text-sm md:text-xs text-[#9CA3AF]">Students who finished recent quizzes</p>
                   </div>
                 </div>
-                <Badge className="bg-[#7fd1a1] text-white text-sm md:text-xs px-3 py-1">0</Badge>
+                <Badge className="bg-[#C2E2F5] text-[#2B2B2B] text-sm md:text-xs px-3 py-1">0</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-4 md:p-4 rounded-lg bg-[#FEF2F2] border border-[#F7DDE2]">
+              <div className="flex items-center justify-between p-4 md:p-4 rounded-[10px] bg-[#FEF2F2] border border-[#F7DDE2]">
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-6 h-6 md:w-5 md:h-5 text-[#EF6161]" />
                   <div>
@@ -261,15 +249,15 @@ export default async function TeacherDashboard() {
                 <Badge className="bg-[#EF6161] text-white text-sm md:text-xs px-3 py-1">0</Badge>
               </div>
 
-              <div className="flex items-center justify-between p-4 md:p-4 rounded-lg bg-[#F0F9FF] border border-[#C2E2F5]">
+              <div className="flex items-center justify-between p-4 md:p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
                 <div className="flex items-center gap-3">
-                  <TrendingUp className="w-6 h-6 md:w-5 md:h-5 text-[#4c8bf5]" />
+                  <TrendingUp className="w-6 h-6 md:w-5 md:h-5 text-[#C2E2F5]" />
                   <div>
                     <p className="text-base md:text-sm font-medium text-[#2B2B2B]">Average Score</p>
                     <p className="text-sm md:text-xs text-[#9CA3AF]">Recent quiz performance</p>
                   </div>
                 </div>
-                <Badge className="bg-[#4c8bf5] text-white text-sm md:text-xs px-3 py-1">N/A</Badge>
+                <Badge className="bg-[#C2E2F5] text-[#2B2B2B] text-sm md:text-xs px-3 py-1">N/A</Badge>
               </div>
             </div>
           </CardContent>
@@ -277,7 +265,7 @@ export default async function TeacherDashboard() {
       </div>
 
       {/* Lesson Overview */}
-      <Card className="bg-white border-[#E5E7EB]">
+      <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -285,7 +273,7 @@ export default async function TeacherDashboard() {
               <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">All your lessons at a glance</CardDescription>
             </div>
             <Link href="/teacher/lessons" className="hidden md:block">
-              <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3]">
+              <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#C2E2F5] hover:border-[#C2E2F5] rounded-[10px]">
                 View All
               </Button>
             </Link>
@@ -307,7 +295,7 @@ export default async function TeacherDashboard() {
               <tbody>
                 <tr className="border-b border-[#E5E7EB]">
                   <td colSpan={5} className="py-8 text-center text-[#9CA3AF]">
-                    No lessons yet. <Link href="/teacher/lessons/create" className="text-[#4c8bf5] hover:underline">Create your first lesson</Link>
+                    No lessons yet. <Link href="/teacher/lessons/create" className="text-[#C2E2F5] hover:text-[#B0D9F0] hover:underline">Create your first lesson</Link>
                   </td>
                 </tr>
               </tbody>
@@ -316,11 +304,11 @@ export default async function TeacherDashboard() {
 
           {/* Mobile Card View */}
           <div className="md:hidden space-y-3">
-            <div className="p-4 border border-[#E5E7EB] rounded-lg bg-white shadow-sm">
+            <div className="p-4 border border-[#E5E7EB] rounded-[10px] bg-white soft-shadow">
               <div className="text-center py-6 text-[#9CA3AF]">
                 <p className="text-base mb-2">No lessons yet.</p>
                 <Link href="/teacher/lessons/create">
-                  <Button className="bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white px-6 py-3 rounded-xl text-base font-medium min-h-[48px]">
+                  <Button className="bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-6 py-3 rounded-[24px] text-base font-medium min-h-[48px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
                     Create your first lesson
                   </Button>
                 </Link>

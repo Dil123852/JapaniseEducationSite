@@ -70,6 +70,11 @@ export default function Navbar() {
     return null;
   }
 
+  // Hide navbar on student routes (they have their own sidebar)
+  if (pathname?.startsWith('/student') || pathname === '/dashboard') {
+    return null;
+  }
+
   // Don't show navbar on auth pages
   if (pathname?.startsWith('/auth')) {
     return null;
