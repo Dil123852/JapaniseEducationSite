@@ -24,10 +24,10 @@ export async function POST(request: Request) {
     // Create quiz (standalone, not related to courses)
     const quiz = await createQuiz(
       title,
+      user.id,
       description,
       password,
-      duration ? parseInt(duration) : undefined,
-      user.id
+      duration ? parseInt(duration) : undefined
     );
 
     return NextResponse.json(quiz);

@@ -42,10 +42,10 @@ export interface QuizSubmission {
 // Quiz functions
 export async function createQuiz(
   title: string,
+  teacherId: string,
   description?: string,
   password?: string,
-  duration?: number,
-  teacherId: string
+  duration?: number
 ): Promise<Quiz> {
   const supabase = await createClient();
   
