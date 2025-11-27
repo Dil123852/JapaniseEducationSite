@@ -18,6 +18,12 @@ import {
 import { getCurrentUserProfileClient, signOut } from '@/app/lib/auth-client';
 import { UserProfile } from '@/app/lib/auth-types';
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon?: React.ReactNode;
+}
+
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -73,13 +79,13 @@ export default function Navbar() {
   const isStudent = profile?.role === 'student';
 
   // Student navigation items
-  const studentNavItems = [
+  const studentNavItems: NavItem[] = [
     { href: '/student/courses', label: 'Lessons' },
     { href: '/dashboard', label: 'Dashboard' },
   ];
 
   // Teacher navigation - will be redesigned
-  const teacherNavItems = [
+  const teacherNavItems: NavItem[] = [
     { href: '/dashboard', label: 'Dashboard' },
   ];
 
