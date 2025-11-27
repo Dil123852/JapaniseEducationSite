@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import VideoPlayer from '@/app/components/VideoPlayer';
-import { getCourseVideos } from '@/app/lib/db/videos';
 import { supabase } from '@/app/lib/supabaseClient';
 
 export default function WatchVideoPage() {
@@ -23,13 +22,22 @@ export default function WatchVideoPage() {
 
   const loadVideo = async () => {
     try {
-      const videos = await getCourseVideos(courseId);
-      const foundVideo = videos.find(v => v.id === videoId);
-      if (foundVideo) {
-        setVideo(foundVideo);
+      const { data, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('id', videoId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching video:', error);
+        setIsLoading(false);
+        return;
       }
+
+      setVideo(data);
       setIsLoading(false);
     } catch (err) {
+      console.error(err);
       setIsLoading(false);
     }
   };
