@@ -1,6 +1,6 @@
 import { createClient } from '../supabase-server';
 import { UserProfile } from '../auth';
-export type {
+import type {
   EnrollmentStatus,
   Enrollment,
   EnrollmentWithStudent,
