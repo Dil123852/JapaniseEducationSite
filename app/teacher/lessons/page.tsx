@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUserProfile } from '@/app/lib/auth-server';
-import { getTeacherCourses } from '@/app/lib/db/courses';
+import { getTeacherCourses, type CourseWithStats } from '@/app/lib/db/courses';
 import { getCourseLessons } from '@/app/lib/db/lessons';
 import LessonsListClient from './LessonsListClient';
 
@@ -13,7 +13,7 @@ export default async function LessonsPage() {
     }
 
     // Fetch all courses for the teacher
-    let courses;
+    let courses: CourseWithStats[];
     try {
       courses = await getTeacherCourses(profile.id);
     } catch (error) {
