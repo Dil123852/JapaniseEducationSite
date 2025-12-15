@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { getCurrentUserProfile, getCurrentUser } from '@/app/lib/auth-server';
 import { getStudentEnrollments } from '@/app/lib/db/enrollments';
 import { getAllQuizzes, getStudentSubmissions } from '@/app/lib/db/quizzes';
-import { getStudentLearningTime, calculateStudentStatus } from '@/app/lib/db/student-stats';
+import { getStudentLearningTime, calculateStudentStatus, StudentStatusResult } from '@/app/lib/db/student-stats';
 import { createClient } from '@/app/lib/supabase-server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,11 +43,11 @@ export default async function NextStepPage() {
   let enrollments: any[] = [];
   let studentSubmissions: any[] = [];
   let learningTime = { formatted: '0h 0m', hours: 0, minutes: 0, totalSeconds: 0 };
-  let studentStatus = {
-    level: 'Beginner' as const,
+  let studentStatus: StudentStatusResult = {
+    level: 'Beginner',
     score: 0,
     description: '',
-    improvements: [] as string[],
+    improvements: [],
   };
   let allQuizzes: any[] = [];
   let recentActivity: any[] = [];
