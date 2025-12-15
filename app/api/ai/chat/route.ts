@@ -134,6 +134,8 @@ function generateFallbackResponse(context: StudentContext, message: string, requ
 }
 
 export async function POST(req: Request) {
+  let message: string = '';
+  
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -160,7 +162,9 @@ export async function POST(req: Request) {
       });
     }
 
-    const { message, conversationHistory = [] } = body;
+    const messageData = body.message;
+    const conversationHistory = body.conversationHistory || [];
+    message = messageData;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return NextResponse.json({ 
