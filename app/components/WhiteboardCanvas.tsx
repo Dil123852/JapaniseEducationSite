@@ -94,9 +94,6 @@ export default function WhiteboardCanvas({
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') {
-      e.stopImmediatePropagation();
-    }
     
     if (!draggedMaterial || isPreviewMode) {
       handleDragEnd();
