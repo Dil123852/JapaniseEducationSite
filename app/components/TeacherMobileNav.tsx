@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
-  BookOpen,
   GraduationCap,
   Users,
   Settings,
@@ -14,7 +13,6 @@ import {
 const mobileNavItems = [
   { href: '/teacher', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/teacher/courses', label: 'Courses', icon: GraduationCap },
-  { href: '/teacher/lessons', label: 'Lessons', icon: BookOpen },
   { href: '/teacher/students', label: 'Students', icon: Users },
   { href: '/teacher/settings', label: 'Settings', icon: Settings },
 ];
