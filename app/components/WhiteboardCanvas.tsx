@@ -207,6 +207,7 @@ export default function WhiteboardCanvas({
               position_y: displayY,
             }}
             isPreviewMode={isPreviewMode}
+            isListMode={false}
             isDragging={draggedMaterial === material.id}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
