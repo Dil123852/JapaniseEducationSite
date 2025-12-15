@@ -5,11 +5,9 @@ import Link from 'next/link';
 import TeacherMobileMenu from '@/app/components/TeacherMobileMenu';
 import { getCurrentUser } from '@/app/lib/auth-server';
 import { getTeacherCourses } from '@/app/lib/db/courses';
-import { getCourseLessons } from '@/app/lib/db/lessons';
 import { getTeacherQuizzes } from '@/app/lib/db/quizzes';
 import { redirect } from 'next/navigation';
 import {
-  BookOpen,
   Video,
   FileText,
   Users,
@@ -30,7 +28,6 @@ export default async function TeacherDashboard() {
 
   // Fetch real-time data directly from database
   let stats = {
-    totalLessons: 0,
     totalStudents: 0,
     totalQuizzes: 0,
   };
@@ -47,24 +44,11 @@ export default async function TeacherDashboard() {
       totalStudents += course.student_count || 0;
     }
 
-    // Calculate total lessons across all courses (real-time count)
-    let totalLessons = 0;
-    for (const course of teacherCourses) {
-      try {
-        const lessons = await getCourseLessons(course.id);
-        totalLessons += lessons.length;
-      } catch (error) {
-        console.error(`Error fetching lessons for course ${course.id}:`, error);
-        // Continue with other courses
-      }
-    }
-
     // Get total quizzes from standalone quizzes table (real-time count)
     const teacherQuizzes = await getTeacherQuizzes(user.id);
     const totalQuizzes = teacherQuizzes.length;
 
     stats = {
-      totalLessons,
       totalStudents,
       totalQuizzes,
     };
@@ -89,18 +73,7 @@ export default async function TeacherDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-6">
-        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between pb-0 px-2.5 md:px-6 pt-1.5 md:pt-3">
-            <CardTitle className="text-xs md:text-sm font-medium text-[#9CA3AF]">Total Lessons</CardTitle>
-            <BookOpen className="w-3.5 h-3.5 md:w-4 md:h-4 text-[#C2E2F5]" />
-          </CardHeader>
-          <CardContent className="px-2.5 md:px-6 pb-1.5 md:pb-3 pt-0">
-            <div className="text-lg md:text-3xl font-bold text-[#2B2B2B]">{stats.totalLessons}</div>
-            <p className="text-[10px] md:text-xs text-[#9CA3AF] mt-0">Active lessons</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 gap-2 md:gap-6">
         <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between pb-0 px-2.5 md:px-6 pt-1.5 md:pt-3">
             <CardTitle className="text-xs md:text-sm font-medium text-[#9CA3AF]">Quizzes</CardTitle>
@@ -132,13 +105,7 @@ export default async function TeacherDashboard() {
         </CardHeader>
         <CardContent>
           {/* Desktop Grid */}
-          <div className="hidden md:grid grid-cols-4 gap-4">
-            <Link href="/teacher/lessons/create">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] rounded-[24px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
-                <Plus className="w-6 h-6" />
-                <span className="font-medium">Create Lesson</span>
-              </Button>
-            </Link>
+          <div className="hidden md:grid grid-cols-3 gap-4">
             <Link href="/teacher/resources/videos">
               <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
                 <Video className="w-6 h-6" />
@@ -161,12 +128,6 @@ export default async function TeacherDashboard() {
           
           {/* Mobile 2-Row Grid */}
           <div className="md:hidden grid grid-cols-2 gap-2">
-            <Link href="/teacher/lessons/create">
-              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-3 rounded-[10px] border border-[#E5E7EB] soft-shadow">
-                <Plus className="w-5 h-5" />
-                <span className="font-medium text-xs">Create Lesson</span>
-              </Button>
-            </Link>
             <Link href="/teacher/resources/videos">
               <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
                 <Video className="w-5 h-5" />
@@ -264,59 +225,6 @@ export default async function TeacherDashboard() {
         </Card>
       </div>
 
-      {/* Lesson Overview */}
-      <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Lesson Overview</CardTitle>
-              <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">All your lessons at a glance</CardDescription>
-            </div>
-            <Link href="/teacher/lessons" className="hidden md:block">
-              <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#C2E2F5] hover:border-[#C2E2F5] rounded-[10px]">
-                View All
-              </Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {/* Desktop Table */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[#E5E7EB]">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#9CA3AF]">Lesson</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#9CA3AF]">Level</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#9CA3AF]">Students</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#9CA3AF]">Progress</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-[#9CA3AF]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-[#E5E7EB]">
-                  <td colSpan={5} className="py-8 text-center text-[#9CA3AF]">
-                    No lessons yet. <Link href="/teacher/lessons/create" className="text-[#C2E2F5] hover:text-[#B0D9F0] hover:underline">Create your first lesson</Link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden space-y-3">
-            <div className="p-4 border border-[#E5E7EB] rounded-[10px] bg-white soft-shadow">
-              <div className="text-center py-6 text-[#9CA3AF]">
-                <p className="text-base mb-2">No lessons yet.</p>
-                <Link href="/teacher/lessons/create">
-                  <Button className="bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-6 py-3 rounded-[24px] text-base font-medium min-h-[48px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
-                    Create your first lesson
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

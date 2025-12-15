@@ -55,9 +55,18 @@ export async function middleware(request: NextRequest) {
   );
 
   // Refresh session to ensure cookies are up to date
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Handle network errors gracefully - they shouldn't block requests
+  let user = null;
+  try {
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+    user = authUser;
+  } catch (error) {
+    // Network errors during token refresh shouldn't block requests
+    // The user will still be authenticated via cookies
+    console.warn('Middleware: Failed to refresh token (this is usually non-critical):', error);
+  }
 
   // Public routes
   const publicRoutes = ['/auth/login', '/auth/signup'];

@@ -122,10 +122,20 @@ export default function Navbar() {
             <div className="flex items-center space-x-8">
               {/* Logo */}
               <Link href="/dashboard" className="flex items-center space-x-2 group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#F7DDE2] to-[#C2E2F5] flex items-center justify-center group-hover:scale-105 transition-transform">
-                  <FontAwesomeIcon icon={faCircle} className="text-[#F7DDE2] text-sm" />
+                <div className="flex items-center gap-2 group-hover:opacity-80 transition-opacity">
+                  {/* Logo icon */}
+                  <img 
+                    src="/logo.png" 
+                    alt="SAKURA DREAM" 
+                    className="h-8 w-8 object-contain flex-shrink-0"
+                  />
+                  {/* Site name - hidden on mobile, shown on desktop */}
+                  <img 
+                    src="/site-name.png" 
+                    alt="SAKURA DREAM" 
+                    className="h-6 md:h-7 w-auto hidden sm:block object-contain"
+                  />
                 </div>
-                <span className="text-lg font-[500] text-[#2B2B2B] hidden sm:block">Sandali Sensei</span>
               </Link>
 
               {/* Desktop Navigation */}

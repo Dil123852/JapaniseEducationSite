@@ -16,11 +16,13 @@ export default async function TeacherLayout({
   }
 
   return (
-    <div className="flex h-screen bg-[#FAFAFA] overflow-hidden">
+    <div className="flex h-screen bg-white overflow-hidden">
       <TeacherSidebar />
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden md:ml-[60px]">
+        <main className="flex-1 overflow-y-auto pb-16 md:pb-0 bg-[#FAFAFA]">
+          {children}
+        </main>
+      </div>
       <TeacherMobileNav />
     </div>
   );

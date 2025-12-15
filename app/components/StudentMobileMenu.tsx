@@ -54,11 +54,19 @@ export default function StudentMobileMenu() {
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 border-b border-[#E5E7EB]">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold text-[#2B2B2B]">Sandali Sensei</h2>
+          <div className="py-4 pl-4 pr-6 border-b border-[#E5E7EB]">
+            <div className="flex items-center gap-2">
+              <img 
+                src="/logo.png" 
+                alt="SAKURA DREAM" 
+                className="h-8 w-8 object-contain flex-shrink-0"
+              />
+              <img 
+                src="/site-name.png" 
+                alt="SAKURA DREAM" 
+                className="h-6 w-auto object-contain"
+              />
             </div>
-            <p className="text-xs text-[#9CA3AF]">Student Portal</p>
           </div>
 
           {/* Navigation */}

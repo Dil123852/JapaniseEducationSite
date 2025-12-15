@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCircle } from '@fortawesome/free-solid-svg-icons';
+import Image from 'next/image';
 import { signUp } from '@/app/lib/auth-client';
 import { useI18n } from '@/app/lib/i18n/context';
 import LanguageSwitcher from '@/app/components/LanguageSwitcher';
@@ -69,11 +68,16 @@ export default function SignupPage() {
           </div>
           
           {/* Header */}
-          <div className="text-center space-y-3">
-            <div className="inline-block mb-2">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#F7DDE2] to-[#C2E2F5] flex items-center justify-center mx-auto">
-                <FontAwesomeIcon icon={faCircle} className="text-2xl text-[#F7DDE2]" />
-              </div>
+          <div className="text-center space-y-4">
+            <div className="flex justify-center mb-2">
+              <Image
+                src="/logo.png"
+                alt="SAKURA DREAM Logo"
+                width={120}
+                height={120}
+                className="h-auto w-auto max-w-[120px]"
+                priority
+              />
             </div>
             <h1 className="text-3xl font-[500] text-[#2B2B2B] tracking-tight">
               {t.signup}

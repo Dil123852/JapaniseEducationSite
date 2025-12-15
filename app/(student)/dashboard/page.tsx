@@ -3,11 +3,12 @@ import { getCurrentUserProfile, getCurrentUser } from '@/app/lib/auth-server';
 import { getStudentEnrollments } from '@/app/lib/db/enrollments';
 import { getCourseLessons } from '@/app/lib/db/lessons';
 import { getAllQuizzes, getStudentSubmissions } from '@/app/lib/db/quizzes';
+import { getStudentLearningTime, calculateStudentStatus } from '@/app/lib/db/student-stats';
 import { createClient } from '@/app/lib/supabase-server';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import StudentMobileMenu from '@/app/components/StudentMobileMenu';
+import FavoriteButton from '@/app/components/FavoriteButton';
 import Link from 'next/link';
 import {
   BookOpen,
@@ -17,231 +18,238 @@ import {
   Play,
   Plus,
   Clock,
-  Flame,
-  Bell,
+  Award,
   ArrowRight,
-  Video,
-  FileText,
+  Sparkles,
 } from 'lucide-react';
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export default async function DashboardPage() {
-  // First check if user is authenticated
   const user = await getCurrentUser();
   
   if (!user) {
     redirect('/auth/login');
   }
 
-  // User is authenticated, now get their profile
   const profile = await getCurrentUserProfile();
 
   if (!profile) {
     redirect('/auth/complete-profile');
   }
 
-  // Redirect teachers to teacher dashboard
   if (profile.role === 'teacher') {
     redirect('/teacher');
   }
 
   const userName = profile.full_name || profile.email?.split('@')[0] || 'User';
+  const greeting = getGreeting();
 
-  // Fetch student statistics
-  let stats = {
-    totalLessons: 0,
-    completedLessons: 0,
-    pendingQuizzes: 0,
-    overallProgress: 0,
-    enrolledCourses: 0,
+  // Fetch all data with proper initialization
+  let enrollments: any[] = [];
+  let inProgressLessons: any[] = [];
+  let recentCourses: any[] = [];
+  let recentQuizzes: any[] = [];
+  let learningTime = { formatted: '0h 0m', hours: 0, minutes: 0, totalSeconds: 0 };
+  let studentStatus = {
+    level: 'Beginner' as const,
+    score: 0,
+    description: '',
+    improvements: [] as string[],
   };
-
-  let recentActivity: any[] = [];
-  let recommendedLessons: any[] = [];
-  let announcements: any[] = [];
-  let lastLesson: any = null;
+  let allQuizzes: any[] = [];
   let studentSubmissions: any[] = [];
-  let lastUsedLessons: any[] = [];
 
   try {
     const supabase = await createClient();
     
-    // Get enrolled courses
-    const enrollments = await getStudentEnrollments(profile.id);
-    stats.enrolledCourses = enrollments.length;
+    // Get enrolled courses - ensures real data is fetched
+    const fetchedEnrollments = await getStudentEnrollments(profile.id);
+    enrollments = Array.isArray(fetchedEnrollments) ? fetchedEnrollments : [];
 
-    // Calculate lessons stats
-    let totalLessons = 0;
-    let completedLessons = 0;
+    // Get all quizzes and submissions - ensures real data is fetched
+    const fetchedQuizzes = await getAllQuizzes();
+    allQuizzes = Array.isArray(fetchedQuizzes) ? fetchedQuizzes : [];
     
-    for (const enrollment of enrollments) {
+    const fetchedSubmissions = await getStudentSubmissions(profile.id);
+    studentSubmissions = Array.isArray(fetchedSubmissions) ? fetchedSubmissions : [];
+
+    // Get learning time - ensures real data is fetched
+    const fetchedLearningTime = await getStudentLearningTime(profile.id);
+    learningTime = fetchedLearningTime || { formatted: '0h 0m', hours: 0, minutes: 0, totalSeconds: 0 };
+
+    // Get student status - ensures real data is fetched
+    const fetchedStatus = await calculateStudentStatus(profile.id);
+    studentStatus = fetchedStatus || {
+      level: 'Beginner' as const,
+      score: 0,
+      description: 'Start learning to see your status',
+      improvements: ['Complete quizzes and watch videos to improve'],
+    };
+
+    // Get recent courses (last 6 enrolled)
+    recentCourses = enrollments
+      .map((e: any) => ({
+        id: e.course?.id || e.course_id,
+        title: e.course?.title || 'Course',
+        description: e.course?.description || '',
+        enrolledAt: e.enrolled_at || e.created_at,
+      }))
+      .sort((a: any, b: any) => new Date(b.enrolledAt).getTime() - new Date(a.enrolledAt).getTime())
+      .slice(0, 6);
+
+    // Get in-progress learning contents
+    for (const enrollment of enrollments.slice(0, 3)) {
       const enrollmentData = enrollment as any;
       const courseId = enrollmentData.course?.id || enrollmentData.course_id;
       if (courseId) {
         const lessons = await getCourseLessons(courseId);
-        totalLessons += lessons.length;
-
-        // Check completed lessons (simplified - you can enhance this with actual progress tracking)
-        // For now, we'll use a placeholder
-        for (const lesson of lessons) {
-          // Check if student has accessed this lesson
+        for (const lesson of lessons.slice(0, 2)) {
+          // Check if student has progress on this lesson
           const { data: progress } = await supabase
-            .from('subtopics')
-            .select('id')
-            .eq('lesson_id', lesson.id)
+            .from('video_analytics')
+            .select('watch_time, completed')
             .limit(1);
           
-          // Simplified completion check - you can enhance this
-          if (progress && progress.length > 0) {
-            completedLessons += 0; // Placeholder - implement actual progress tracking
-          }
-        }
-      }
-    }
-
-    stats.totalLessons = totalLessons;
-    stats.completedLessons = completedLessons;
-    stats.overallProgress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
-
-    // Get quizzes
-    const allQuizzes = await getAllQuizzes();
-    studentSubmissions = await getStudentSubmissions(profile.id);
-    const submittedQuizIds = new Set(studentSubmissions.map((s: any) => s.quiz_id));
-    stats.pendingQuizzes = allQuizzes.filter((q: any) => !submittedQuizIds.has(q.id)).length;
-
-    // Get last used lessons (from all enrolled courses, get recent lessons)
-    if (enrollments.length > 0) {
-      for (const enrollment of enrollments) {
-        const enrollmentData = enrollment as any;
-        const courseId = enrollmentData.course?.id || enrollmentData.course_id;
-        if (courseId) {
-          const courseLessons = await getCourseLessons(courseId);
-          // Add course info to each lesson
-          const lessonsWithCourse = courseLessons.map((lesson: any) => ({
+          inProgressLessons.push({
             ...lesson,
             course_id: courseId,
             course_title: enrollmentData.course?.title || 'Course',
-          }));
-          lastUsedLessons.push(...lessonsWithCourse);
-        }
-      }
-      // Sort by created_at or updated_at (most recent first) and take first 4-6
-      lastUsedLessons = lastUsedLessons
-        .sort((a: any, b: any) => {
-          const dateA = new Date(a.created_at || a.updated_at || 0).getTime();
-          const dateB = new Date(b.created_at || b.updated_at || 0).getTime();
-          return dateB - dateA;
-        })
-        .slice(0, 6);
-      
-      // Get last lesson for quick action
-      if (lastUsedLessons.length > 0) {
-        lastLesson = lastUsedLessons[0];
-      }
-    }
-
-    // Get recent activity (simplified - you can enhance with actual activity tracking)
-    const recentSubmissions = studentSubmissions.slice(0, 3);
-    for (const submission of recentSubmissions) {
-      const quiz = allQuizzes.find((q: any) => q.id === submission.quiz_id);
-      if (quiz) {
-        recentActivity.push({
-          type: 'quiz',
-          title: quiz.title,
-          score: `${submission.score}/${submission.total_points}`,
-          date: new Date(submission.submitted_at).toLocaleDateString(),
-        });
-      }
-    }
-
-    // Get recommended lessons (simplified - you can enhance with ML/recommendation logic)
-    if (enrollments.length > 0) {
-      for (const enrollment of enrollments.slice(0, 2)) {
-        const enrollmentData = enrollment as any;
-        const courseId = enrollmentData.course?.id || enrollmentData.course_id;
-        if (courseId) {
-          const courseLessons = await getCourseLessons(courseId);
-          recommendedLessons.push(...courseLessons.slice(0, 2).map((lesson: any) => ({ ...lesson, course_id: courseId })));
+            progress: 0, // Placeholder - can be enhanced with actual progress tracking
+          });
         }
       }
     }
 
-    // Get announcements (from notifications)
-    const courseIds = enrollments.map((e: any) => e.course?.id || e.course_id).filter(Boolean);
-    if (courseIds.length > 0) {
-      const { data: notifications } = await supabase
-        .from('notifications')
-        .select('*')
-        .in('course_id', courseIds)
-        .order('created_at', { ascending: false })
-        .limit(3);
+    // Limit in-progress lessons to 6
+    inProgressLessons = inProgressLessons.slice(0, 6);
 
-      if (notifications) {
-        announcements = notifications.map((n: any) => ({
-          id: n.id,
-          title: n.title || 'Announcement',
-          message: n.message || '',
-          date: new Date(n.created_at).toLocaleDateString(),
-        }));
-      }
-    }
+    // Get recent quizzes (available quizzes and recently completed)
+    const submittedQuizIds = new Set(studentSubmissions.map((s: any) => s.quiz_id));
+    const pendingQuizzes = allQuizzes.filter((q: any) => !submittedQuizIds.has(q.id));
+    const completedQuizzes = studentSubmissions
+      .map((s: any) => {
+        const quiz = allQuizzes.find((q: any) => q.id === s.quiz_id);
+        if (!quiz) return null;
+        return {
+          ...quiz,
+          score: s.score,
+          total_points: s.total_points,
+          submitted_at: s.submitted_at,
+          completed: true,
+        };
+      })
+      .filter(Boolean)
+      .sort((a: any, b: any) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+
+    // Combine pending and completed quizzes, limit to 6
+    recentQuizzes = [
+      ...completedQuizzes.slice(0, 3),
+      ...pendingQuizzes.slice(0, 3),
+    ].slice(0, 6);
+
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
   }
 
   return (
-    <div className="min-h-screen bg-white p-4 md:p-8 space-y-6 md:space-y-8 pb-20 md:pb-8">
-      {/* Mobile Header with Hamburger */}
-      <div className="flex items-center justify-between md:hidden mb-4">
-        <StudentMobileMenu />
-        <h1 className="text-xl font-bold text-[#2B2B2B]">Dashboard</h1>
-        <div className="w-10"></div> {/* Spacer for centering */}
+    <div className="min-h-screen bg-[#FAFAFA] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 pb-20 md:pb-8 safe-area-bottom">
+      {/* Greeting Section with Stats Cards and Enrollment Button - Single Row */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+        {/* Greeting */}
+        <div className="flex-shrink-0 w-full sm:w-auto">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-[#2B2B2B] break-words sm:whitespace-nowrap">
+            {greeting}, {userName} 👋
+          </h1>
+          <p className="text-xs sm:text-sm text-[#9CA3AF] mt-0.5 break-words sm:whitespace-nowrap">
+            Welcome to SAKURA DREAM
+          </p>
       </div>
 
-      {/* Welcome Header */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">
-              こんにちは 👋 {userName}!
-            </h1>
-            <p className="text-sm md:text-base text-[#9CA3AF] mt-1">
-              Ready to learn Japanese today?
-            </p>
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 sm:justify-end justify-between w-full sm:w-auto">
+          {/* Small Stats Cards */}
+          <div className="flex items-center gap-2 sm:gap-2 md:gap-3 flex-1 sm:flex-none overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+            {/* Enrolled Courses */}
+            <Card className="bg-white border-[#E5E7EB] rounded-[10px] soft-shadow hover:shadow-md transition-shadow flex-shrink-0 h-auto py-2 sm:py-2 px-3 sm:px-4 min-w-[80px] sm:min-w-0 touch-target">
+              <div className="flex flex-col items-center justify-center">
+                <CardTitle className="text-[9px] sm:text-[10px] font-medium text-[#9CA3AF] leading-tight whitespace-nowrap mb-0.5">Enrolled</CardTitle>
+                <div className="text-base sm:text-lg font-bold text-[#2B2B2B]">{enrollments.length}</div>
+              </div>
+            </Card>
+
+            {/* Learning Time */}
+            <Card className="bg-white border-[#E5E7EB] rounded-[10px] soft-shadow hover:shadow-md transition-shadow flex-shrink-0 h-auto py-2 sm:py-2 px-3 sm:px-4 min-w-[80px] sm:min-w-0 touch-target">
+              <div className="flex flex-col items-center justify-center">
+                <CardTitle className="text-[9px] sm:text-[10px] font-medium text-[#9CA3AF] leading-tight whitespace-nowrap mb-0.5">Time</CardTitle>
+                <div className="text-base sm:text-lg font-bold text-[#2B2B2B] text-xs sm:text-base">{learningTime.formatted}</div>
           </div>
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#FEF2F2] rounded-[10px] border border-[#F7DDE2]">
-              <Flame className="w-4 h-4 text-[#EF6161]" />
-              <span className="text-sm font-medium text-[#2B2B2B]">7 day streak</span>
+            </Card>
+
+            {/* Completed Quizzes */}
+            <Card className="bg-white border-[#E5E7EB] rounded-[10px] soft-shadow hover:shadow-md transition-shadow flex-shrink-0 h-auto py-2 sm:py-2 px-3 sm:px-4 min-w-[80px] sm:min-w-0 touch-target">
+              <div className="flex flex-col items-center justify-center">
+                <CardTitle className="text-[9px] sm:text-[10px] font-medium text-[#9CA3AF] leading-tight whitespace-nowrap mb-0.5">Quizzes</CardTitle>
+                <div className="text-base sm:text-lg font-bold text-[#2B2B2B]">{studentSubmissions.length}</div>
             </div>
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#F0F9FF] rounded-[10px] border border-[#C2E2F5]">
-              <Clock className="w-4 h-4 text-[#C2E2F5]" />
-              <span className="text-sm font-medium text-[#2B2B2B]">2h 30m this week</span>
+            </Card>
+
+            {/* Student Status */}
+            <Card className="bg-white border-[#E5E7EB] rounded-[10px] soft-shadow hover:shadow-md transition-shadow flex-shrink-0 h-auto py-2 sm:py-2 px-3 sm:px-4 min-w-[80px] sm:min-w-0 touch-target">
+              <div className="flex flex-col items-center justify-center">
+                <CardTitle className="text-[9px] sm:text-[10px] font-medium text-[#9CA3AF] leading-tight whitespace-nowrap mb-0.5">Status</CardTitle>
+                <div className="text-xs sm:text-base font-bold text-[#2B2B2B] truncate w-full text-center">{studentStatus.level}</div>
             </div>
+            </Card>
           </div>
+
+          {/* Enroll Button - Right after stat cards */}
+          <Link href="/student/enroll" className="flex-shrink-0 touch-target">
+            <Button className="h-auto py-2 sm:py-2 px-3 sm:px-4 bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium text-xs sm:text-sm shadow-sm hover:shadow-md transition-all whitespace-nowrap touch-feedback min-h-[44px]">
+              <Plus className="w-4 h-4 mr-1.5" />
+              <span className="hidden sm:inline">Enroll in Course</span>
+              <span className="sm:hidden">Enroll</span>
+            </Button>
+          </Link>
         </div>
       </div>
 
-      {/* Last Used Lessons */}
+      {/* In Progress Learning Contents */}
       <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
-        <CardHeader className="pb-3 md:pb-6">
-          <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Last Used Lessons</CardTitle>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">In Progress Learning Contents</CardTitle>
           <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Continue from where you left off</CardDescription>
+            </div>
+            <Link href="/student/courses" className="hidden md:block">
+              <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#C2E2F5] hover:border-[#C2E2F5] rounded-[10px]">
+                View All
+              </Button>
+            </Link>
+          </div>
         </CardHeader>
         <CardContent>
-          {lastUsedLessons.length === 0 ? (
+          {inProgressLessons.length === 0 ? (
             <div className="text-center py-8 md:py-12 text-[#9CA3AF]">
               <BookOpen className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-base md:text-lg font-medium mb-2">No lessons yet</p>
-              <p className="text-sm md:text-base">Enroll in a course to start learning</p>
+              <p className="text-base md:text-lg font-medium mb-2">No lessons in progress</p>
+              <p className="text-sm md:text-base">Start a lesson to see your progress here</p>
             </div>
           ) : (
-            <div className="overflow-x-auto md:overflow-visible">
-              <div className="flex md:grid md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 min-w-max md:min-w-0">
-                {lastUsedLessons.map((lesson) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {inProgressLessons.map((lesson) => (
+                <div
+                  key={lesson.id}
+                  className="relative p-4 sm:p-5 border border-[#E5E7EB] rounded-[10px] hover:bg-[#FAFAFA] active:bg-[#F5F5F5] transition-colors group touch-feedback"
+                >
                   <Link
-                    key={lesson.id}
                     href={`/student/courses/${lesson.course_id}/lessons/${lesson.id}`}
-                    className="flex-shrink-0 w-64 md:w-auto p-4 border border-[#E5E7EB] rounded-[10px] hover:bg-[#FAFAFA] transition-colors group"
+                    className="block"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -250,172 +258,22 @@ export default async function DashboardPage() {
                       </div>
                       <ArrowRight className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#2B2B2B] opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
-                    <h3 className="text-sm font-medium text-[#2B2B2B] mb-1 line-clamp-2">{lesson.title}</h3>
-                    {lesson.description && (
-                      <p className="text-xs text-[#9CA3AF] line-clamp-2 mt-1">{lesson.description}</p>
-                    )}
+                    <h3 className="text-sm font-medium text-[#2B2B2B] mb-2 line-clamp-2">{lesson.title}</h3>
+                    <div className="flex items-center justify-between mt-3">
+                      <Button size="sm" variant="ghost" className="text-xs h-7">
+                        Continue
+                </Button>
+                      <span className="text-xs text-[#9CA3AF]">{lesson.progress}%</span>
+          </div>
+                    <div className="h-1.5 rounded-full bg-[#E5E7EB] mt-2">
+                      <div 
+                        className="h-full rounded-full bg-[#C2E2F5] transition-all"
+                        style={{ width: `${lesson.progress || 0}%` }}
+                      />
+                </div>
                   </Link>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Quick Actions */}
-      <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
-        <CardHeader className="pb-3 md:pb-6">
-          <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Quick Actions</CardTitle>
-          <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Get started with your learning</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Desktop Grid */}
-          <div className="hidden md:grid grid-cols-4 gap-4">
-            {lastLesson ? (
-              <Link href={`/student/courses/${lastLesson.course_id}/lessons/${lastLesson.id}`}>
-                <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] rounded-[24px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
-                  <Play className="w-6 h-6" />
-                  <span className="font-medium">Continue Lesson</span>
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/student/courses">
-                <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] rounded-[24px] border border-[#E5E7EB] soft-shadow hover:shadow-md">
-                  <Play className="w-6 h-6" />
-                  <span className="font-medium">Start Learning</span>
-                </Button>
-              </Link>
-            )}
-            <Link href="/student/courses">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
-                <Plus className="w-6 h-6" />
-                <span className="font-medium">New Lesson</span>
-              </Button>
-            </Link>
-            <Link href="/student/quizzes">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
-                <FileQuestion className="w-6 h-6" />
-                <span className="font-medium">Attempt Quiz</span>
-              </Button>
-            </Link>
-            <Link href="/student/resources">
-              <Button className="w-full h-auto py-6 flex flex-col gap-2 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] rounded-[24px]">
-                <BookOpen className="w-6 h-6" />
-                <span className="font-medium">Resources</span>
-              </Button>
-            </Link>
-          </div>
-          
-          {/* Mobile 2-Row Grid */}
-          <div className="md:hidden grid grid-cols-2 gap-2">
-            {lastLesson ? (
-              <Link href={`/student/courses/${lastLesson.course_id}/lessons/${lastLesson.id}`}>
-                <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-3 rounded-[10px] border border-[#E5E7EB] soft-shadow">
-                  <Play className="w-5 h-5" />
-                  <span className="font-medium text-xs">Continue</span>
-                </Button>
-              </Link>
-            ) : (
-              <Link href="/student/courses">
-                <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B] px-3 rounded-[10px] border border-[#E5E7EB] soft-shadow">
-                  <Play className="w-5 h-5" />
-                  <span className="font-medium text-xs">Start</span>
-                </Button>
-              </Link>
-            )}
-            <Link href="/student/courses">
-              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
-                <Plus className="w-5 h-5" />
-                <span className="font-medium text-xs">New Lesson</span>
-              </Button>
-            </Link>
-            <Link href="/student/quizzes">
-              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
-                <FileQuestion className="w-5 h-5" />
-                <span className="font-medium text-xs">Quiz</span>
-              </Button>
-            </Link>
-            <Link href="/student/resources">
-              <Button className="w-full h-auto py-3 flex flex-col gap-1.5 bg-white border-2 border-[#E5E7EB] hover:bg-[#FCE7F3] text-[#2B2B2B] px-3 rounded-[10px]">
-                <BookOpen className="w-5 h-5" />
-                <span className="font-medium text-xs">Resources</span>
-              </Button>
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        {/* Progress Summary */}
-        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Progress Summary</CardTitle>
-            <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Your learning journey overview</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
-                <div>
-                  <p className="text-sm font-medium text-[#2B2B2B]">Lessons</p>
-                  <p className="text-xs text-[#9CA3AF] mt-1">Completed / Total</p>
-                </div>
-                <Badge className="bg-[#C2E2F5] text-[#2B2B2B] text-sm px-3 py-1">
-                  {stats.completedLessons} / {stats.totalLessons}
-                </Badge>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
-                <div>
-                  <p className="text-sm font-medium text-[#2B2B2B]">Quizzes</p>
-                  <p className="text-xs text-[#9CA3AF] mt-1">Completed / Pending</p>
-                </div>
-                <Badge className="bg-[#C2E2F5] text-[#2B2B2B] text-sm px-3 py-1">
-                  {studentSubmissions?.length || 0} / {stats.pendingQuizzes}
-                </Badge>
-              </div>
-
-              <div className="p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-[#2B2B2B]">Overall Course Progress</p>
-                  <span className="text-sm font-bold text-[#2B2B2B]">{stats.overallProgress}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-[#E5E7EB]">
-                  <div 
-                    className="h-full rounded-full transition-all bg-[#C2E2F5]"
-                    style={{ width: `${stats.overallProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Activity */}
-        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
-          <CardHeader>
-            <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Recent Activity</CardTitle>
-            <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Your latest learning activities</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {recentActivity.length === 0 ? (
-              <div className="text-center py-6 md:py-8 text-[#9CA3AF]">
-                <Clock className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3 opacity-50" />
-                <p className="text-base md:text-sm">No recent activity</p>
-                <p className="text-sm md:text-xs mt-1">Start learning to see your activity here</p>
-              </div>
-            ) : (
-              <div className="space-y-3 md:space-y-4">
-                {recentActivity.map((activity, index) => (
-                  <div key={index} className="flex items-start gap-3 p-3 rounded-[10px] hover:bg-[#FAFAFA] transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-[#C2E2F5] mt-2"></div>
-                    <div className="flex-1">
-                      <p className="text-base md:text-sm text-[#2B2B2B]">
-                        {activity.type === 'quiz' && '📝'} {activity.title}
-                      </p>
-                      <p className="text-sm md:text-xs text-[#9CA3AF] mt-1">
-                        {activity.type === 'quiz' && `Score: ${activity.score} • `}
-                        {activity.date}
-                      </p>
+                  <div className="absolute top-4 right-4">
+                    <FavoriteButton lessonId={lesson.id} size="sm" />
                     </div>
                   </div>
                 ))}
@@ -423,16 +281,14 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
 
-      {/* Recommended Lessons */}
-      {recommendedLessons.length > 0 && (
+      {/* Recent Enrolled Courses */}
         <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Recommended for You</CardTitle>
-                <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Continue your learning journey</CardDescription>
+              <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Recent Enrolled Courses</CardTitle>
+              <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Your recently enrolled courses</CardDescription>
               </div>
               <Link href="/student/courses" className="hidden md:block">
                 <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#C2E2F5] hover:border-[#C2E2F5] rounded-[10px]">
@@ -442,38 +298,52 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {recommendedLessons.slice(0, 3).map((lesson) => (
+          {recentCourses.length === 0 ? (
+            <div className="text-center py-8 md:py-12 text-[#9CA3AF]">
+              <BookOpen className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-base md:text-lg font-medium mb-2">No courses enrolled</p>
+              <Link href="/student/enroll">
+                <Button className="mt-4 bg-[#C2E2F5] hover:bg-[#B0D9F0] text-[#2B2B2B]">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Enroll in a Course
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {recentCourses.map((course) => (
                 <Link
-                  key={lesson.id}
-                  href={`/student/courses/${lesson.course_id}/lessons/${lesson.id}`}
+                  key={course.id}
+                  href={`/student/courses/${course.id}`}
                   className="p-4 border border-[#E5E7EB] rounded-[10px] hover:bg-[#FAFAFA] transition-colors group"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <BookOpen className="w-5 h-5 text-[#C2E2F5] group-hover:text-[#B0D9F0]" />
                     <ArrowRight className="w-4 h-4 text-[#9CA3AF] group-hover:text-[#2B2B2B] opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <h3 className="text-sm font-medium text-[#2B2B2B] mb-1">{lesson.title}</h3>
-                  {lesson.description && (
-                    <p className="text-xs text-[#9CA3AF] line-clamp-2">{lesson.description}</p>
+                  <h3 className="text-sm font-medium text-[#2B2B2B] mb-1 line-clamp-2">{course.title}</h3>
+                  {course.description && (
+                    <p className="text-xs text-[#9CA3AF] line-clamp-2 mt-1">{course.description}</p>
                   )}
+                  <p className="text-xs text-[#9CA3AF] mt-3">
+                    Enrolled {new Date(course.enrolledAt).toLocaleDateString()}
+                  </p>
                 </Link>
               ))}
             </div>
+          )}
           </CardContent>
         </Card>
-      )}
 
-      {/* Announcements */}
-      {announcements.length > 0 && (
+      {/* Recent Enrolled Quizzes */}
         <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Announcements</CardTitle>
-                <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Updates from your teachers</CardDescription>
+              <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Recent Enrolled Quizzes</CardTitle>
+              <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Available and completed quizzes</CardDescription>
               </div>
-              <Link href="/student/notifications" className="hidden md:block">
+            <Link href="/student/quizzes" className="hidden md:block">
                 <Button variant="outline" size="sm" className="border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#C2E2F5] hover:border-[#C2E2F5] rounded-[10px]">
                   View All
                 </Button>
@@ -481,24 +351,99 @@ export default async function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {announcements.map((announcement) => (
-                <div key={announcement.id} className="p-4 rounded-[10px] bg-[#F0F9FF] border border-[#C2E2F5]">
-                  <div className="flex items-start gap-3">
-                    <Bell className="w-5 h-5 text-[#C2E2F5] mt-0.5" />
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-[#2B2B2B] mb-1">{announcement.title}</h4>
-                      <p className="text-xs text-[#9CA3AF]">{announcement.message}</p>
-                      <p className="text-xs text-[#9CA3AF] mt-2">{announcement.date}</p>
+          {recentQuizzes.length === 0 ? (
+            <div className="text-center py-8 md:py-12 text-[#9CA3AF]">
+              <FileQuestion className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 opacity-50" />
+              <p className="text-base md:text-lg font-medium mb-2">No quizzes available</p>
+              <p className="text-sm md:text-base">Quizzes will appear here when available</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {recentQuizzes.map((quiz: any) => (
+                <Link
+                  key={quiz.id}
+                  href={quiz.completed ? `/student/quizzes/${quiz.id}` : `/student/quizzes/${quiz.id}/take`}
+                  className="p-4 border border-[#E5E7EB] rounded-[10px] hover:bg-[#FAFAFA] transition-colors group"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <FileQuestion className="w-5 h-5 text-[#C2E2F5] group-hover:text-[#B0D9F0]" />
+                    {quiz.completed ? (
+                      <Badge className="bg-[#C2E2F5] text-[#2B2B2B] text-xs">Completed</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs">Pending</Badge>
+                    )}
+                  </div>
+                  <h3 className="text-sm font-medium text-[#2B2B2B] mb-1 line-clamp-2">{quiz.title}</h3>
+                  {quiz.description && (
+                    <p className="text-xs text-[#9CA3AF] line-clamp-2 mt-1">{quiz.description}</p>
+                  )}
+                  {quiz.completed && (
+                    <p className="text-xs text-[#9CA3AF] mt-3">
+                      Score: {quiz.score}/{quiz.total_points}
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Learning Time & Student Status Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Learning Time */}
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Learning Time</CardTitle>
+            <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Total time spent learning</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <Clock className="w-16 h-16 text-[#C2E2F5] mx-auto mb-4" />
+                <div className="text-4xl font-bold text-[#2B2B2B] mb-2">{learningTime.formatted}</div>
+                <p className="text-sm text-[#9CA3AF]">Total learning time</p>
                     </div>
                   </div>
+          </CardContent>
+        </Card>
+
+        {/* Student Status */}
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg md:text-xl text-[#2B2B2B]">Student Status</CardTitle>
+            <CardDescription className="text-sm md:text-base text-[#9CA3AF] hidden md:block">Your current learning level</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="text-center py-4">
+                <Award className={`w-16 h-16 mx-auto mb-4 ${
+                  studentStatus.level === 'Expert' ? 'text-yellow-500' :
+                  studentStatus.level === 'Advanced' ? 'text-blue-500' :
+                  studentStatus.level === 'Intermediate' ? 'text-green-500' :
+                  'text-[#C2E2F5]'
+                }`} />
+                <div className="text-3xl font-bold text-[#2B2B2B] mb-2">{studentStatus.level}</div>
+                <Badge className="bg-[#C2E2F5] text-[#2B2B2B]">{studentStatus.score}%</Badge>
                 </div>
-              ))}
+              <p className="text-sm text-[#9CA3AF] text-center">{studentStatus.description}</p>
+              {studentStatus.improvements.length > 0 && (
+                <div className="pt-4 border-t border-[#E5E7EB]">
+                  <p className="text-xs font-medium text-[#2B2B2B] mb-2">Suggestions to improve:</p>
+                  <ul className="space-y-1">
+                    {studentStatus.improvements.map((improvement, idx) => (
+                      <li key={idx} className="text-xs text-[#9CA3AF] flex items-start gap-2">
+                        <Sparkles className="w-3 h-3 mt-0.5 text-[#C2E2F5] flex-shrink-0" />
+                        <span>{improvement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
     </div>
   );
 }
-

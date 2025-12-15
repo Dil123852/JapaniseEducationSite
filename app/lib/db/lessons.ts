@@ -88,6 +88,10 @@ export async function getCourseLessons(courseId: string): Promise<Lesson[]> {
       }
       return [];
     }
+    
+    // Log result for debugging
+    console.log(`[Server] getCourseLessons for course ${courseId}: Found ${data?.length || 0} lessons`);
+    
     return data || [];
   } catch (err: any) {
     console.error('[Server] Unexpected error in getCourseLessons:', {

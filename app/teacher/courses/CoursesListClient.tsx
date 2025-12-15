@@ -139,7 +139,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
   const handleDeleteCourse = async (courseId: string) => {
     if (
       !confirm(
-        'Are you sure you want to delete this course? This will also delete all lessons, subtopics, and student enrollments. This action cannot be undone.'
+        'Are you sure you want to delete this course? This will also delete all course materials and student enrollments. This action cannot be undone.'
       )
     ) {
       return;
@@ -183,40 +183,39 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 md:space-y-8 pb-20 md:pb-8">
+    <div className="min-h-screen bg-[#FAFAFA] p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 md:space-y-8 pb-20 md:pb-8 safe-area-bottom">
       {/* Mobile Header with Hamburger */}
       <div className="flex items-center justify-between md:hidden mb-4">
         <TeacherMobileMenu />
-        <h1 className="text-xl font-bold text-[#2B2B2B]">Courses</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-[#2B2B2B]">Courses</h1>
         <div className="w-10"></div> {/* Spacer for centering */}
       </div>
 
       {/* Desktop Header */}
       <div className="hidden md:block">
-        <h1 className="text-3xl font-bold text-[#2B2B2B] mb-2">Courses</h1>
-        <p className="text-[#9CA3AF]">Manage your courses and organize your teaching content</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-[#2B2B2B] mb-2">Courses</h1>
+        <p className="text-sm md:text-base text-[#9CA3AF]">Manage your courses and organize your teaching content</p>
       </div>
 
       {/* Header Actions */}
-      <div className="flex items-center justify-end md:justify-end">
+      <div className="flex items-center justify-end">
         <Dialog open={isCreating} onOpenChange={setIsCreating}>
           <DialogTrigger asChild>
-            <Button className="bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white min-h-[48px] px-4 md:px-6 w-full md:w-auto">
-              <Plus className="w-5 h-5 mr-2" />
-              <span className="hidden md:inline">Create Course</span>
-              <span className="md:hidden">Create Course</span>
+            <Button className="bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium min-h-[48px] px-4 md:px-6 w-full sm:w-auto shadow-sm hover:shadow-md transition-all touch-target touch-feedback">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              <span>Create Course</span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-[#E5E7EB] rounded-[24px]">
             <DialogHeader>
-              <DialogTitle className="text-xl text-[#2B2B2B]">Create New Course</DialogTitle>
-              <DialogDescription className="text-[#9CA3AF]">
+              <DialogTitle className="text-xl sm:text-2xl text-[#2B2B2B] font-semibold">Create New Course</DialogTitle>
+              <DialogDescription className="text-sm sm:text-base text-[#9CA3AF]">
                 Add a new course to start organizing your lessons
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateCourse} className="space-y-5 mt-4">
               <div>
-                <Label htmlFor="create-title" className="text-[#2B2B2B]">
+                <Label htmlFor="create-title" className="text-sm font-medium text-[#2B2B2B]">
                   Course Title <span className="text-[#EF6161]">*</span>
                 </Label>
                 <Input
@@ -224,13 +223,13 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="e.g., Japanese Language Basics"
-                  className="mt-2"
+                  className="mt-2 border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                   required
                 />
               </div>
 
               <div>
-                <Label htmlFor="create-description" className="text-[#2B2B2B]">
+                <Label htmlFor="create-description" className="text-sm font-medium text-[#2B2B2B]">
                   Description
                 </Label>
                 <Textarea
@@ -238,14 +237,14 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Brief description of the course..."
-                  className="mt-2"
+                  className="mt-2 border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                   rows={4}
                 />
               </div>
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <Label htmlFor="create-key" className="text-[#2B2B2B]">
+                  <Label htmlFor="create-key" className="text-sm font-medium text-[#2B2B2B]">
                     Enrollment Key <span className="text-[#EF6161]">*</span>
                   </Label>
                   <Button
@@ -253,7 +252,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                     variant="outline"
                     size="sm"
                     onClick={generateEnrollmentKey}
-                    className="text-xs"
+                    className="text-xs border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3] hover:border-[#C2E2F5]"
                   >
                     Generate
                   </Button>
@@ -263,7 +262,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   value={formData.enrollmentKey}
                   onChange={(e) => setFormData({ ...formData, enrollmentKey: e.target.value.toUpperCase() })}
                   placeholder="e.g., JAPAN101"
-                  className="mt-2 font-mono"
+                  className="mt-2 font-mono border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                   required
                   maxLength={20}
                 />
@@ -276,7 +275,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                 <Button
                   type="submit"
                   disabled={isSubmitting || !formData.title.trim() || !formData.enrollmentKey.trim()}
-                  className="flex-1 bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white min-h-[48px]"
+                  className="flex-1 bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium min-h-[48px] shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? 'Creating...' : 'Create Course'}
                 </Button>
@@ -284,7 +283,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   type="button"
                   variant="outline"
                   onClick={() => setIsCreating(false)}
-                  className="min-h-[48px]"
+                  className="min-h-[48px] border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3] hover:border-[#C2E2F5]"
                 >
                   Cancel
                 </Button>
@@ -295,37 +294,34 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <Card className="bg-white border-[#E5E7EB]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">
-              Total Courses
-            </CardTitle>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-[#9CA3AF]">Total Courses</CardTitle>
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">{courses.length}</div>
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6 pt-2">
+            <div className="text-2xl sm:text-3xl font-bold text-[#2B2B2B]">{courses.length}</div>
           </CardContent>
         </Card>
-        <Card className="bg-white border-[#E5E7EB]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">
-              Total Students
-            </CardTitle>
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-[#9CA3AF]">Total Students</CardTitle>
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6 pt-2">
+            <div className="text-2xl sm:text-3xl font-bold text-[#2B2B2B]">
               {courses.reduce((sum, c) => sum + (c.student_count || 0), 0)}
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-white border-[#E5E7EB]">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base md:text-sm font-medium text-[#9CA3AF]">
-              Total Groups
-            </CardTitle>
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow hover:shadow-md transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between pb-0 px-4 md:px-6 pt-4 md:pt-6">
+            <CardTitle className="text-xs sm:text-sm font-medium text-[#9CA3AF]">Total Groups</CardTitle>
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#C2E2F5]" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl md:text-3xl font-bold text-[#2B2B2B]">
+          <CardContent className="px-4 md:px-6 pb-4 md:pb-6 pt-2">
+            <div className="text-2xl sm:text-3xl font-bold text-[#2B2B2B]">
               {courses.reduce((sum, c) => sum + (c.group_count || 0), 0)}
             </div>
           </CardContent>
@@ -334,48 +330,52 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
 
       {/* Courses List */}
       {courses.length === 0 ? (
-        <Card className="bg-white border-[#E5E7EB]">
-          <CardContent className="py-12 text-center">
-            <BookOpen className="w-16 h-16 mx-auto mb-4 text-[#9CA3AF] opacity-50" />
-            <h3 className="text-lg font-medium text-[#2B2B2B] mb-2">No courses yet</h3>
-            <p className="text-[#9CA3AF] mb-4">Create your first course to get started</p>
+        <Card className="bg-white border-[#E5E7EB] rounded-[24px] soft-shadow">
+          <CardContent className="py-12 sm:py-16 text-center">
+            <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-[#C2E2F5] opacity-50" />
+            <h3 className="text-lg sm:text-xl font-medium text-[#2B2B2B] mb-2">No courses yet</h3>
+            <p className="text-sm sm:text-base text-[#9CA3AF] mb-6">Create your first course to get started</p>
             <Button
               onClick={() => setIsCreating(true)}
-              className="bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white min-h-[48px] text-base"
+              className="bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium min-h-[48px] text-base shadow-sm hover:shadow-md transition-all touch-target touch-feedback"
             >
+              <Plus className="w-4 h-4 mr-2" />
               Create Course
             </Button>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
           {courses.map((course) => (
             <Card
               key={course.id}
-              className="bg-white border-[#E5E7EB] hover:shadow-md transition-shadow group"
+              className="bg-white border-[#E5E7EB] rounded-[18px] sm:rounded-[24px] soft-shadow hover:shadow-md active:shadow-sm transition-all group touch-feedback"
             >
-              <CardHeader>
+              <CardHeader className="p-4 sm:p-6">
                 <div className="flex items-start justify-between mb-2">
-                  <CardTitle className="text-lg md:text-xl text-[#2B2B2B] line-clamp-2 flex-1">
-                    {course.title}
-                  </CardTitle>
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <BookOpen className="w-5 h-5 text-[#C2E2F5] flex-shrink-0 mt-0.5" />
+                    <CardTitle className="text-base sm:text-lg md:text-xl text-[#2B2B2B] line-clamp-2 flex-1">
+                      {course.title}
+                    </CardTitle>
+                  </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                        <MoreVertical className="w-5 h-5 md:w-4 md:h-4 text-[#9CA3AF]" />
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 flex-shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity touch-target">
+                        <MoreVertical className="w-4 h-4 sm:w-5 sm:h-5 text-[#9CA3AF]" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => openEditDialog(course)}>
+                    <DropdownMenuContent align="end" className="bg-white border-[#E5E7EB] rounded-lg">
+                      <DropdownMenuLabel className="text-[#2B2B2B]">Actions</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="bg-[#E5E7EB]" />
+                      <DropdownMenuItem onClick={() => openEditDialog(course)} className="text-[#2B2B2B] hover:bg-[#FCE7F3] cursor-pointer">
                         <Edit className="w-4 h-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
+                      <DropdownMenuSeparator className="bg-[#E5E7EB]" />
                       <DropdownMenuItem
                         onClick={() => handleDeleteCourse(course.id)}
-                        className="text-[#EF6161]"
+                        className="text-[#EF6161] hover:bg-[#FEF2F2] cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Delete
@@ -384,17 +384,17 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   </DropdownMenu>
                 </div>
                 {course.description && (
-                  <CardDescription className="text-[#9CA3AF] line-clamp-2">
+                  <CardDescription className="text-sm sm:text-base text-[#9CA3AF] line-clamp-2 mt-2">
                     {course.description}
                   </CardDescription>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-4 p-4 sm:p-6 pt-0">
                 {/* Enrollment Key */}
-                <div className="flex items-center justify-between p-3 bg-[#FAFAFA] rounded-lg border border-[#E5E7EB]">
+                <div className="flex items-center justify-between p-3 sm:p-4 bg-[#FAFAFA] rounded-[10px] border border-[#E5E7EB]">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <Key className="w-4 h-4 text-[#9CA3AF] flex-shrink-0" />
-                    <span className="text-sm font-mono text-[#2B2B2B] truncate">
+                    <Key className="w-4 h-4 sm:w-5 sm:h-5 text-[#C2E2F5] flex-shrink-0" />
+                    <span className="text-xs sm:text-sm font-mono text-[#2B2B2B] truncate">
                       {course.enrollment_key}
                     </span>
                   </div>
@@ -402,45 +402,36 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                     variant="ghost"
                     size="sm"
                     onClick={() => copyEnrollmentKey(course.enrollment_key)}
-                    className="h-8 w-8 p-0 flex-shrink-0"
+                    className="h-8 w-8 p-0 flex-shrink-0 hover:bg-[#FCE7F3] touch-target"
                   >
                     {copiedKey === course.enrollment_key ? (
-                      <CheckCircle2 className="w-4 h-4 text-[#7fd1a1]" />
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-[#22C55E]" />
                     ) : (
-                      <Copy className="w-4 h-4 text-[#9CA3AF]" />
+                      <Copy className="w-4 h-4 sm:w-5 sm:h-5 text-[#9CA3AF]" />
                     )}
                   </Button>
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Users className="w-4 h-4 text-[#9CA3AF]" />
+                <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-[#C2E2F5]" />
                     <span className="text-[#2B2B2B] font-medium">
                       {course.student_count || 0}
                     </span>
                     <span className="text-[#9CA3AF]">students</span>
                   </div>
-                  <Badge variant="outline" className="text-xs border-[#E5E7EB] text-[#9CA3AF]">
+                  <Badge variant="outline" className="text-xs border-[#E5E7EB] text-[#9CA3AF] bg-white">
                     {course.group_count || 0} groups
                   </Badge>
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col md:flex-row gap-2 pt-2">
-                  <Link href={`/teacher/lessons?courseId=${course.id}`} className="flex-1">
-                    <Button
-                      variant="outline"
-                      className="w-full border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3] min-h-[48px] text-base md:text-sm"
-                    >
-                      <BookOpen className="w-5 h-5 md:w-4 md:h-4 mr-2" />
-                      Lessons
-                    </Button>
-                  </Link>
-                  <Link href={`/teacher/courses/${course.id}`} className="flex-1">
-                    <Button className="w-full bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white min-h-[48px] text-base md:text-sm">
-                      View
-                      <ChevronRight className="w-5 h-5 md:w-4 md:h-4 ml-2" />
+                <div className="pt-2">
+                  <Link href={`/teacher/courses/${course.id}`} className="block">
+                    <Button className="w-full bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium min-h-[48px] text-sm sm:text-base shadow-sm hover:shadow-md transition-all touch-feedback">
+                      View Course
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                     </Button>
                   </Link>
                 </div>
@@ -452,43 +443,43 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
 
       {/* Edit Course Dialog */}
       <Dialog open={editingCourse !== null} onOpenChange={(open) => !open && closeEditDialog()}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-white border-[#E5E7EB] rounded-[24px]">
           <DialogHeader>
-            <DialogTitle className="text-xl text-[#2B2B2B]">Edit Course</DialogTitle>
-            <DialogDescription className="text-[#9CA3AF]">
+            <DialogTitle className="text-xl sm:text-2xl text-[#2B2B2B] font-semibold">Edit Course</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base text-[#9CA3AF]">
               Update course details
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateCourse} className="space-y-5 mt-4">
             <div>
-              <Label htmlFor="edit-title" className="text-[#2B2B2B]">
+              <Label htmlFor="edit-title" className="text-sm font-medium text-[#2B2B2B]">
                 Course Title <span className="text-[#EF6161]">*</span>
               </Label>
               <Input
                 id="edit-title"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="mt-2"
+                className="mt-2 border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="edit-description" className="text-[#2B2B2B]">
+              <Label htmlFor="edit-description" className="text-sm font-medium text-[#2B2B2B]">
                 Description
               </Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-2"
+                className="mt-2 border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                 rows={4}
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="edit-key" className="text-[#2B2B2B]">
+                <Label htmlFor="edit-key" className="text-sm font-medium text-[#2B2B2B]">
                   Enrollment Key
                 </Label>
                 <Button
@@ -496,7 +487,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                   variant="outline"
                   size="sm"
                   onClick={generateEnrollmentKey}
-                  className="text-xs"
+                  className="text-xs border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3] hover:border-[#C2E2F5]"
                 >
                   Generate New
                 </Button>
@@ -505,7 +496,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                 id="edit-key"
                 value={formData.enrollmentKey}
                 onChange={(e) => setFormData({ ...formData, enrollmentKey: e.target.value.toUpperCase() })}
-                className="mt-2 font-mono"
+                className="mt-2 font-mono border-[#E5E7EB] focus:border-[#C2E2F5] focus:ring-2 focus:ring-[#C2E2F5]/20 rounded-[10px] text-base"
                 maxLength={20}
               />
               <p className="text-xs text-[#9CA3AF] mt-1">
@@ -517,7 +508,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
               <Button
                 type="submit"
                 disabled={isSubmitting || !formData.title.trim()}
-                className="flex-1 bg-[#4c8bf5] hover:bg-[#3a7ae0] text-white min-h-[48px]"
+                className="flex-1 bg-gradient-to-r from-[#C2E2F5] to-[#F7DDE2] hover:from-[#B0D9F0] hover:to-[#F0D1D8] text-[#2B2B2B] font-medium min-h-[48px] shadow-sm hover:shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
@@ -525,7 +516,7 @@ export default function CoursesListClient({ courses: initialCourses }: Props) {
                 type="button"
                 variant="outline"
                 onClick={closeEditDialog}
-                className="min-h-[48px]"
+                className="min-h-[48px] border-[#E5E7EB] text-[#2B2B2B] hover:bg-[#FCE7F3] hover:border-[#C2E2F5]"
               >
                 Cancel
               </Button>
