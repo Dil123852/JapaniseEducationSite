@@ -86,7 +86,7 @@ export default async function DashboardPage() {
     // Get student status - ensures real data is fetched
     const fetchedStatus = await calculateStudentStatus(profile.id);
     studentStatus = fetchedStatus || {
-      level: 'Beginner' as const,
+      level: 'Beginner',
       score: 0,
       description: 'Start learning to see your status',
       improvements: ['Complete quizzes and watch videos to improve'],
