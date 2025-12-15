@@ -127,9 +127,6 @@ export default function WhiteboardCanvas({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof e.stopImmediatePropagation === 'function') {
-      e.stopImmediatePropagation();
-    }
     
     if (draggedMaterial && !isPreviewMode) {
       e.dataTransfer.dropEffect = 'move';
@@ -165,9 +162,6 @@ export default function WhiteboardCanvas({
       onDragEnter={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (typeof e.stopImmediatePropagation === 'function') {
-          e.stopImmediatePropagation();
-        }
         if (draggedMaterial && !isPreviewMode) {
           e.dataTransfer.dropEffect = 'move';
         }
